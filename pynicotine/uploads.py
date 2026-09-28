@@ -88,7 +88,7 @@ class Uploads(Transfers):
             ("shares-ready", self._shares_ready),
             ("transfer-request", self._transfer_request),
             ("transfer-response", self._transfer_response),
-            ("upload-file-error", self._ile_error),
+            ("upload-file-error", self._upload_file_error),
             ("user-stats", self._user_stats),
             ("user-status", self._user_status)
         ):
