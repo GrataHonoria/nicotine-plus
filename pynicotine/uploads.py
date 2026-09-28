@@ -13,7 +13,7 @@ import os
 import sys
 import time
 
-from collections import defaultdict
+from collections import defaultdict,deque
 
 from pynicotine.config import config
 from pynicotine.core import core
@@ -49,6 +49,9 @@ class Uploads(Transfers):
                  "_queue_position_users", "_privileged_position_requested", "_pending_network_msgs",
                  "_queue_notification_users", "_user_update_counter", "_user_update_counters",
                  "_queue_notification_timer_id", "_upload_queue_timer_id", "_retry_failed_uploads_timer_id")
+    
+    ueseen = set()
+    ueorder = deque(maxlen=128
 
     def __init__(self):
 
@@ -85,7 +88,7 @@ class Uploads(Transfers):
             ("shares-ready", self._shares_ready),
             ("transfer-request", self._transfer_request),
             ("transfer-response", self._transfer_response),
-            ("upload-file-error", self._upload_file_error),
+            ("upload-file-error", self._ile_error),
             ("user-stats", self._user_stats),
             ("user-status", self._user_status)
         ):
@@ -1121,6 +1124,19 @@ class Uploads(Transfers):
         super()._transfer_timeout(transfer)
         self._check_upload_queue()
 
+    def fingerp(self, message):
+        return hash(message)
+
+    def on_log_message(self, message):
+        fp = self.fingerp(message)
+        if fp in self.ueseen:
+            return True
+        if len(self.ueorder) == self.ueorder.maxlen:
+            self.ueseen.discard(self.ueorder[0])
+        self.ueseen.add(fp)
+        self.ueorder.append(fp)
+        return False
+
     def _upload_file_error(self, username, token, error):
         """Networking thread encountered a local file error for upload."""
 
@@ -1131,7 +1147,18 @@ class Uploads(Transfers):
 
         if isinstance(error, ValueError):
             status = TransferStatus.CANCELLED
-            error = f"Remote client does not support large file transfers: {error}"
+            error = f"User {username} does not support large file transfers."
+            self._abort_transfer(upload, status=status)
+            if not self.on_log_message(error):
+                log.add(_("%s"), error)
+                try:
+                    core.privatechat.send_message(username,
+                    "Hello, your client does not support large file transfers, "
+                    "Please update your Soulseek client")
+                except Exception:
+                    pass
+            self._check_upload_queue()
+            return
         else:
             status = TransferStatus.LOCAL_FILE_ERROR
 
