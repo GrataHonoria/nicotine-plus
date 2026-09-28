@@ -11,7 +11,7 @@ permissions: {}
 
 jobs:
   windows:
-    if: ${{ (github.event.inputs.job == github.job) || (github.event.inputs.job == 'all') }}
+    if: ${{ (inputs.job == 'windows') || (inputs.job == 'all') }}
     timeout-minutes: 15
     strategy:
       matrix:
