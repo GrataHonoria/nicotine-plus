@@ -1,0 +1,75 @@
+name: Build_Win
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job to run.'
+        required: true
+        default: 'windows'
+  
+permissions: {}
+
+jobs:
+  windows:
+    if: ${{ (github.event.inputs.job == github.job) || (github.event.inputs.job == 'all') }}
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            prefix: mingw-w64-ucrt-x86_64
+            msystem: ucrt64
+            platform: windows-2025
+    runs-on: ${{ matrix.platform }}
+    env:
+      ARCH: ${{ matrix.arch }}
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup msys2
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884 # v2.32.0
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: true
+          install: >-
+            ${{ matrix.prefix }}-ca-certificates
+            ${{ matrix.prefix }}-gettext-tools
+            ${{ matrix.prefix }}-gobject-introspection
+            ${{ matrix.prefix }}-gtk4
+            ${{ matrix.prefix }}-libadwaita
+            ${{ matrix.prefix }}-python-build
+            ${{ matrix.prefix }}-python-cx-freeze
+            ${{ matrix.prefix }}-python-gobject
+            ${{ matrix.prefix }}-python-pycodestyle
+            ${{ matrix.prefix }}-python-pylint
+            ${{ matrix.prefix }}-python-setuptools
+            ${{ matrix.prefix }}-python-wheel
+            ${{ matrix.prefix }}-webp-pixbuf-loader
+
+      - name: Install additional dependencies
+        run: python3 build-aux/windows/dependencies.py
+
+      - name: Freeze application
+        run: python3 build-aux/windows/setup.py bdist_msi
+
+      - name: Make package portable
+        run: |
+          mkdir build-aux/windows/build/package/Nicotine+/portable/
+          cp build-aux/windows/readme-portable.txt build-aux/windows/build/package/Nicotine+/portable/README.txt
+
+      - name: Archive portable artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-${{ matrix.arch }}-portable
+          path: build-aux/windows/build/package
+          if-no-files-found: error
+
+      - name: Test application startup
+        shell: cmd  # Exclude msys2 dependencies
+        run: python3 build-aux/windows/testrun.py
