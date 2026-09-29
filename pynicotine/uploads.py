@@ -51,7 +51,7 @@ class Uploads(Transfers):
                  "_queue_notification_timer_id", "_upload_queue_timer_id", "_retry_failed_uploads_timer_id")
     
     ueseen = set()
-    ueorder = deque(maxlen=128
+    ueorder = deque(maxlen=128)
 
     def __init__(self):
 
